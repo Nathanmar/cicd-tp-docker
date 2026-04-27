@@ -45,6 +45,7 @@ RUN apk add --no-cache \
     php84-session \
     php84-redis \
     libpq \
+    && apk add --no-cache --upgrade openssl libcrypto3 libssl3 \
     && ln -sf /usr/bin/php84 /usr/bin/php \
     && ln -sf /usr/sbin/php-fpm84 /usr/sbin/php-fpm \
     && sed -i 's/listen = 127.0.0.1:9000/listen = 9000/g' /etc/php84/php-fpm.d/www.conf \
