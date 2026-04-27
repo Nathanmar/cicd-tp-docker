@@ -1,5 +1,5 @@
 # ========== STAGE 1 : Builder ==========
-FROM composer:2 AS builder
+FROM composer:2.7 AS builder
 WORKDIR /app
 COPY composer.json composer.lock* ./
 RUN composer install \
@@ -15,7 +15,7 @@ RUN find vendor -type d -name "tests" -exec rm -rf {} + \
     && find vendor -type d -name "docs" -exec rm -rf {} +
 
 # ========== STAGE 2 : Production ==========
-FROM alpine:3.20 AS production
+FROM alpine:3.20.1 AS production
 WORKDIR /var/www/html
 
 # Utiliser les dépôts edge pour avoir PHP 8.4 et les libs compatibles
