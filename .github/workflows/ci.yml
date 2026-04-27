@@ -8,7 +8,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   # ========== JOB 1 : Tests ==========
@@ -47,6 +46,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Lowercase IMAGE_NAME
+        run: echo "IMAGE_NAME=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
       # Login GHCR
       - uses: docker/login-action@v3
