@@ -14,7 +14,5 @@
 /storage/framework/sessions/*
 /storage/framework/views/*
 /storage/logs/*
-/tests/Feature/ExampleTest.php
-/tests/Unit/ExampleTest.php
 .phpunit.cache
 composer.lock
