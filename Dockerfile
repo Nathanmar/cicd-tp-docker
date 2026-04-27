@@ -8,69 +8,74 @@ RUN composer install \
     --no-plugins \
     --no-scripts \
     --prefer-dist \
-    --optimize-autoloader
-
-# Nettoyage agressif
-RUN find vendor -type d -name "tests" -exec rm -rf {} + \
-    && find vendor -type d -name "docs" -exec rm -rf {} +
+    --optimize-autoloader \
+    && find vendor \( \
+        -type d -name "tests" \
+        -o -type d -name "Tests" \
+        -o -type d -name "docs" \
+        -o -type d -name ".git" \
+        -o -type f -name "*.md" \
+        -o -type f -name "*.txt" \
+        -o -type f -name "*.rst" \
+        -o -type f -name "composer.json" \
+        -o -type f -name "composer.lock" \
+        -o -type f -name "CHANGELOG*" \
+        -o -type f -name "LICENSE*" \
+        -o -type f -name "CONTRIBUTING*" \
+        -o -type f -name "phpunit.xml*" \
+        -o -type f -name "*.sh" \
+    \) -exec rm -rf {} + 2>/dev/null; true
 
 # ========== STAGE 2 : Production ==========
 FROM alpine:3.20.1 AS production
 WORKDIR /var/www/html
 
-# Utiliser les dépôts edge pour avoir PHP 8.4 et les libs compatibles
-RUN apk update && apk upgrade --no-cache \
-    && apk add --no-cache --repository=http://dl-cdn.alpinelinux.org/alpine/edge/community \
+RUN apk add --no-cache \
+    --repository=http://dl-cdn.alpinelinux.org/alpine/edge/community \
     --repository=http://dl-cdn.alpinelinux.org/alpine/edge/main \
     php84 \
     php84-fpm \
     php84-pdo_pgsql \
-    php84-pdo \
     php84-mbstring \
     php84-xml \
-    php84-xmlwriter \
     php84-dom \
     php84-openssl \
     php84-curl \
     php84-tokenizer \
     php84-session \
     php84-redis \
-    libpq
+    libpq \
+    && ln -sf /usr/bin/php84 /usr/bin/php \
+    && ln -sf /usr/sbin/php-fpm84 /usr/sbin/php-fpm \
+    && sed -i 's/listen = 127.0.0.1:9000/listen = 9000/g' /etc/php84/php-fpm.d/www.conf \
+    && [ -f /etc/php84/php-fpm.conf ] && sed -i 's/;error_log = log\/php84\/error.log/error_log = \/dev\/stderr/g' /etc/php84/php-fpm.conf || true \
+    && addgroup -g 82 -S www-data 2>/dev/null; \
+       adduser  -u 82 -D -S -G www-data www-data 2>/dev/null; true \
+    && rm -rf /var/cache/apk/*
 
-# Liens symboliques pour PHP 8.4
-RUN ln -sf /usr/bin/php84 /usr/bin/php \
-    && ln -sf /usr/sbin/php-fpm84 /usr/sbin/php-fpm
+# Copier le code proprement (un dossier par ligne pour garder la structure)
+COPY --chown=www-data:www-data app/ ./app/
+COPY --chown=www-data:www-data bootstrap/ ./bootstrap/
+COPY --chown=www-data:www-data config/ ./config/
+COPY --chown=www-data:www-data database/ ./database/
+COPY --chown=www-data:www-data public/ ./public/
+COPY --chown=www-data:www-data routes/ ./routes/
+COPY --chown=www-data:www-data artisan .env.example ./
 
-# Configurer PHP-FPM 8.4
-RUN sed -i 's/listen = 127.0.0.1:9000/listen = 9000/g' /etc/php84/php-fpm.d/www.conf \
-    && sed -i 's/user = .*/user = www-data/g' /etc/php84/php-fpm.d/www.conf \
-    && sed -i 's/group = .*/group = www-data/g' /etc/php84/php-fpm.d/www.conf \
-    && sed -i 's/;error_log = .*/error_log = \/dev\/stderr/g' /etc/php84/php-fpm.conf
+COPY --chown=www-data:www-data --from=builder /app/vendor/ ./vendor/
 
-# S'assurer que l'utilisateur www-data existe
-RUN if ! getent group www-data; then addgroup -g 82 -S www-data; fi \
-    && if ! getent passwd www-data; then adduser -u 82 -D -S -G www-data www-data; fi
-
-# Copier le code source
-COPY app/ ./app/
-COPY bootstrap/ ./bootstrap/
-COPY config/ ./config/
-COPY database/ ./database/
-COPY public/ ./public/
-COPY routes/ ./routes/
-COPY artisan ./
-
-# Copier les vendor
-COPY --from=builder /app/vendor/ ./vendor/
-
-# Permissions
-RUN mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
-    && chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+# Initialisation
+RUN mkdir -p \
+        storage/framework/cache/data \
+        storage/framework/sessions \
+        storage/framework/views \
+        storage/logs \
+        bootstrap/cache \
+    && chown -R www-data:www-data storage bootstrap/cache \
+    && cp .env.example .env \
+    && php artisan key:generate \
+    && rm -rf database/factories database/seeders .env.example
 
 USER www-data
-
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-  CMD pgrep php-fpm84 || exit 1
-
 EXPOSE 9000
-CMD ["php-fpm84", "-F"]
+CMD ["php-fpm", "-F"]

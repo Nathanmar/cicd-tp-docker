@@ -12,6 +12,7 @@ class HealthController extends Controller
     {
         $health = [
             'status' => 'healthy',
+            'version' => env('APP_VERSION', '1.0.0-stable'),
             'timestamp' => now()->toIso8601String(),
         ];
 
