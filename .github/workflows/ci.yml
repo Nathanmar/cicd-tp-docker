@@ -34,7 +34,7 @@ jobs:
         run: php artisan key:generate
 
       - name: Run Tests
-        run: php artisan test --coverage
+        run: ./vendor/bin/phpunit --coverage-text
 
   # ========== JOB 2 : Build + Scan + Push ==========
   build-and-push:
