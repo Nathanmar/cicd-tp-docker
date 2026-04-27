@@ -19,7 +19,8 @@ FROM alpine:3.20.1 AS production
 WORKDIR /var/www/html
 
 # Utiliser les dépôts edge pour avoir PHP 8.4 et les libs compatibles
-RUN apk add --no-cache --repository=http://dl-cdn.alpinelinux.org/alpine/edge/community \
+RUN apk update && apk upgrade --no-cache \
+    && apk add --no-cache --repository=http://dl-cdn.alpinelinux.org/alpine/edge/community \
     --repository=http://dl-cdn.alpinelinux.org/alpine/edge/main \
     php84 \
     php84-fpm \
